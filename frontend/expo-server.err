@@ -1,0 +1,34 @@
+The following packages should be updated for best compatibility with the installed expo version:
+  react-native@0.74.1 - expected version: 0.74.5
+  react-native-safe-area-context@4.10.1 - expected version: 4.10.5
+Your project may not work correctly until you install the expected versions of the packages.
+Error: ENOENT: no such file or directory, open 'C:\Users\manas\Downloads\Employer_Employee_Management\frontend\assets\favicon.png'
+    at Object.openSync (node:fs:560:18)
+    at readFileSync (node:fs:444:35)
+    at calculateHash (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@expo\image-utils\src\Cache.ts:13:73)
+    at createCacheKey (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@expo\image-utils\src\Cache.ts:19:16)
+    at Object.createCacheKeyWithDirectoryAsync (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@expo\image-utils\src\Cache.ts:28:31)
+    at generateImageAsync (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@expo\image-utils\src\Image.ts:182:32)
+    at processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at getFaviconFromExpoConfigAsync (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@expo\cli\src\export\favicon.ts:83:24)
+    at FaviconMiddleware.handleRequestAsync (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@expo\cli\src\start\server\middleware\FaviconMiddleware.ts:29:20)
+    at internalMiddleware (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@expo\cli\src\start\server\middleware\ExpoMiddleware.ts:44:16)
+Error: Unable to resolve module react-native-safe-area-context from C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\@react-navigation\elements\lib\module\Header\Header.js: react-native-safe-area-context could not be found within the project or in these directories:
+  node_modules
+[0m [90m 1 | [39m[36mimport[39m [33m*[39m [36mas[39m [33mReact[39m [36mfrom[39m [32m'react'[39m[33m;[39m[0m
+[0m [90m 2 | [39m[36mimport[39m { [33mAnimated[39m[33m,[39m [33mPlatform[39m[33m,[39m [33mStyleSheet[39m[33m,[39m [33mView[39m } [36mfrom[39m [32m'react-native'[39m[33m;[39m[0m
+[0m[31m[1m>[22m[39m[90m 3 | [39m[36mimport[39m { useSafeAreaFrame[33m,[39m useSafeAreaInsets } [36mfrom[39m [32m'react-native-safe-area-context'[39m[33m;[39m[0m
+[0m [90m   | [39m                                                     [31m[1m^[22m[39m[0m
+[0m [90m 4 | [39m[36mimport[39m getDefaultHeaderHeight [36mfrom[39m [32m'./getDefaultHeaderHeight'[39m[33m;[39m[0m
+[0m [90m 5 | [39m[36mimport[39m [33mHeaderBackground[39m [36mfrom[39m [32m'./HeaderBackground'[39m[33m;[39m[0m
+[0m [90m 6 | [39m[36mimport[39m [33mHeaderShownContext[39m [36mfrom[39m [32m'./HeaderShownContext'[39m[33m;[39m[0m
+    at ModuleResolver.resolveDependency (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\node-haste\DependencyGraph\ModuleResolution.js:139:15)
+    at DependencyGraph.resolveDependency (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\node-haste\DependencyGraph.js:232:43)
+    at C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\lib\transformHelpers.js:156:21
+    at resolveDependencies (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\DeltaBundler\buildSubgraph.js:42:25)
+    at visit (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\DeltaBundler\buildSubgraph.js:83:30)
+    at async Promise.all (index 0)
+    at buildSubgraph (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\DeltaBundler\buildSubgraph.js:103:3)
+    at Graph._buildDelta (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\DeltaBundler\Graph.js:157:22)
+    at Graph.traverseDependencies (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\DeltaBundler\Graph.js:49:19)
+    at DeltaCalculator._getChangedDependencies (C:\Users\manas\Downloads\Employer_Employee_Management\frontend\node_modules\metro\src\DeltaBundler\DeltaCalculator.js:187:42)
