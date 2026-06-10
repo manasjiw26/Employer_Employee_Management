@@ -53,6 +53,17 @@ export const LeaveModel = {
     return data;
   },
 
+  findByCompany: async (companyId: string) => {
+    const { data, error } = await supabaseDb
+      .from('leave_requests')
+      .select('*, profile:profiles(id, name, email, avatar_url)')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  },
+
   findById: async (id: string, companyId: string) => {
     const { data, error } = await supabaseDb
       .from('leave_requests')

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { applyLeave, getMyLeaves, getPendingLeaves, updateLeaveStatus } from '../controllers/leave.controller';
+import { applyLeave, getCompanyLeaves, getMyLeaves, getPendingLeaves, updateLeaveStatus } from '../controllers/leave.controller';
 import { authenticate, requireEmployer } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -14,6 +14,7 @@ router.get('/my', getMyLeaves);
 
 // GET  /api/leaves/pending    — employer views all pending leaves
 router.get('/pending', requireEmployer, getPendingLeaves);
+router.get('/company', requireEmployer, getCompanyLeaves);
 
 // PATCH /api/leaves/:id       — employer approves or rejects a leave
 router.patch('/:id', requireEmployer, updateLeaveStatus);

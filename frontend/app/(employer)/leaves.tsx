@@ -13,16 +13,25 @@ import { Colors } from '../../src/theme/colors';
 import { apiFetch } from '../../src/config/api';
 import { Calendar, Check, X, FileText, User } from 'lucide-react-native';
 
+type LeaveStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+const statusFilters: { label: string; value: LeaveStatus }[] = [
+  { label: 'Pending', value: 'PENDING' },
+  { label: 'Approved', value: 'APPROVED' },
+  { label: 'Rejected', value: 'REJECTED' },
+];
+
 export default function EmployerLeaves() {
   const [leaves, setLeaves] = useState<any[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<LeaveStatus>('PENDING');
   const [loading, setLoading] = useState(true);
   const [comments, setComments] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState<Record<string, boolean>>({});
 
-  const fetchPendingLeaves = async () => {
+  const fetchLeaves = async () => {
     try {
       setLoading(true);
-      const data = await apiFetch('/leaves/pending');
+      const data = await apiFetch('/leaves/company');
       setLeaves(data);
     } catch (err: any) {
       console.log('Error fetching leaves:', err.message);
@@ -32,7 +41,7 @@ export default function EmployerLeaves() {
   };
 
   useEffect(() => {
-    fetchPendingLeaves();
+    fetchLeaves();
   }, []);
 
   const handleUpdateStatus = async (leaveId: string, status: 'APPROVED' | 'REJECTED') => {
@@ -45,8 +54,11 @@ export default function EmployerLeaves() {
         body: JSON.stringify({ status, manager_comment: comment }),
       });
 
-      // Remove the handled leave from the list
-      setLeaves(prev => prev.filter(item => item.id !== leaveId));
+      setLeaves(prev => prev.map(item => (
+        item.id === leaveId
+          ? { ...item, status, manager_comment: comment }
+          : item
+      )));
       Alert.alert('Success', `Leave request ${status.toLowerCase()} successfully.`);
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to update leave request');
@@ -58,6 +70,8 @@ export default function EmployerLeaves() {
   const handleCommentChange = (leaveId: string, text: string) => {
     setComments(prev => ({ ...prev, [leaveId]: text }));
   };
+
+  const filteredLeaves = leaves.filter(item => item.status === selectedStatus);
 
   const renderLeaveItem = ({ item }: { item: any }) => {
     const typeLabels = {
@@ -79,6 +93,25 @@ export default function EmployerLeaves() {
           <View style={styles.profileInfo}>
             <Text style={styles.empName}>{item.profile?.name || 'Employee'}</Text>
             <Text style={styles.empEmail}>{item.profile?.email || ''}</Text>
+          </View>
+          <View style={[
+            styles.statusBadge,
+            item.status === 'APPROVED'
+              ? styles.approvedBadge
+              : item.status === 'REJECTED'
+                ? styles.rejectedBadge
+                : styles.pendingBadge,
+          ]}>
+            <Text style={[
+              styles.statusBadgeText,
+              item.status === 'APPROVED'
+                ? styles.approvedBadgeText
+                : item.status === 'REJECTED'
+                  ? styles.rejectedBadgeText
+                  : styles.pendingBadgeText,
+            ]}>
+              {item.status}
+            </Text>
           </View>
         </View>
 
@@ -105,35 +138,42 @@ export default function EmployerLeaves() {
           <Text style={styles.reasonText}>"{item.reason}"</Text>
         </View>
 
-        {/* Comment field */}
-        <TextInput
-          style={styles.commentInput}
-          placeholder="Add a manager comment/feedback..."
-          placeholderTextColor={Colors.textMuted}
-          value={comments[item.id] || ''}
-          onChangeText={(text) => handleCommentChange(item.id, text)}
-        />
+        {item.status === 'PENDING' ? (
+          <>
+            <TextInput
+              style={styles.commentInput}
+              placeholder="Add a manager comment/feedback..."
+              placeholderTextColor={Colors.textMuted}
+              value={comments[item.id] || ''}
+              onChangeText={(text) => handleCommentChange(item.id, text)}
+            />
 
-        {/* Action Buttons */}
-        <View style={styles.actionsRow}>
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.rejectBtn]}
-            onPress={() => handleUpdateStatus(item.id, 'REJECTED')}
-            disabled={submitting[item.id]}
-          >
-            <X color={Colors.danger} size={16} />
-            <Text style={styles.rejectBtnText}>Reject</Text>
-          </TouchableOpacity>
+            <View style={styles.actionsRow}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.rejectBtn]}
+                onPress={() => handleUpdateStatus(item.id, 'REJECTED')}
+                disabled={submitting[item.id]}
+              >
+                <X color={Colors.danger} size={16} />
+                <Text style={styles.rejectBtnText}>Reject</Text>
+              </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.approveBtn]}
-            onPress={() => handleUpdateStatus(item.id, 'APPROVED')}
-            disabled={submitting[item.id]}
-          >
-            <Check color={Colors.success} size={16} />
-            <Text style={styles.approveBtnText}>Approve</Text>
-          </TouchableOpacity>
-        </View>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.approveBtn]}
+                onPress={() => handleUpdateStatus(item.id, 'APPROVED')}
+                disabled={submitting[item.id]}
+              >
+                <Check color={Colors.success} size={16} />
+                <Text style={styles.approveBtnText}>Approve</Text>
+              </TouchableOpacity>
+            </View>
+          </>
+        ) : item.manager_comment ? (
+          <View style={styles.managerComment}>
+            <Text style={styles.managerCommentLabel}>Manager comment</Text>
+            <Text style={styles.managerCommentText}>{item.manager_comment}</Text>
+          </View>
+        ) : null}
       </View>
     );
   };
@@ -148,18 +188,36 @@ export default function EmployerLeaves() {
 
   return (
     <View style={styles.container}>
+      <View style={styles.filters}>
+        {statusFilters.map(filter => {
+          const active = selectedStatus === filter.value;
+          const count = leaves.filter(item => item.status === filter.value).length;
+
+          return (
+            <TouchableOpacity
+              key={filter.value}
+              style={[styles.filterButton, active && styles.filterButtonActive]}
+              onPress={() => setSelectedStatus(filter.value)}
+            >
+              <Text style={[styles.filterText, active && styles.filterTextActive]}>
+                {filter.label} ({count})
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
       <FlatList
-        data={leaves}
+        data={filteredLeaves}
         renderItem={renderLeaveItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No pending leave requests.</Text>
+            <Text style={styles.emptyText}>No {selectedStatus.toLowerCase()} leave requests.</Text>
           </View>
         }
         refreshing={loading}
-        onRefresh={fetchPendingLeaves}
+        onRefresh={fetchLeaves}
       />
     </View>
   );
@@ -177,7 +235,37 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContainer: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+  },
+  filters: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 14,
+  },
+  filterButton: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    marginHorizontal: 3,
+    borderRadius: 10,
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  filterButtonActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  filterText: {
+    fontFamily: 'Outfit',
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textMuted,
+  },
+  filterTextActive: {
+    color: Colors.onPrimary,
   },
   card: {
     backgroundColor: Colors.card,
@@ -207,6 +295,35 @@ const styles = StyleSheet.create({
   },
   profileInfo: {
     marginLeft: 12,
+    flex: 1,
+  },
+  statusBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+  approvedBadge: {
+    backgroundColor: Colors.tagGreen,
+  },
+  rejectedBadge: {
+    backgroundColor: Colors.tagRed,
+  },
+  pendingBadge: {
+    backgroundColor: Colors.tagGold,
+  },
+  statusBadgeText: {
+    fontFamily: 'Outfit',
+    fontSize: 10,
+    fontWeight: '800',
+  },
+  approvedBadgeText: {
+    color: Colors.success,
+  },
+  rejectedBadgeText: {
+    color: Colors.danger,
+  },
+  pendingBadgeText: {
+    color: Colors.warning,
   },
   empName: {
     fontFamily: 'Outfit',
@@ -310,6 +427,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: Colors.success,
     marginLeft: 6,
+  },
+  managerComment: {
+    backgroundColor: Colors.inputBg,
+    borderRadius: 10,
+    padding: 12,
+  },
+  managerCommentLabel: {
+    fontFamily: 'Outfit',
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.textMuted,
+    marginBottom: 4,
+  },
+  managerCommentText: {
+    fontFamily: 'Outfit',
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
   emptyCard: {
     backgroundColor: Colors.card,

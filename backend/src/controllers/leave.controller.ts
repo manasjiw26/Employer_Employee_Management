@@ -42,6 +42,15 @@ export const getPendingLeaves = async (req: Request, res: Response) => {
   }
 };
 
+export const getCompanyLeaves = async (req: Request, res: Response) => {
+  try {
+    const leaves = await LeaveModel.findByCompany(req.user!.companyId);
+    return res.json(leaves);
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message });
+  }
+};
+
 export const updateLeaveStatus = async (req: Request, res: Response) => {
   try {
     const { status, manager_comment } = req.body;
