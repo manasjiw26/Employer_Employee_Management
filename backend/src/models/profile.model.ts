@@ -58,7 +58,10 @@ export const ProfileModel = {
     name: string;
     role: string;
     companyId: string;
+    jiraAccountId?: string;
+    jiraDisplayName?: string;
   }) => {
+    const hasJiraMapping = Boolean(payload.jiraAccountId);
     const { data, error } = await supabaseDb
       .from('profiles')
       .insert({
@@ -67,6 +70,9 @@ export const ProfileModel = {
         name: payload.name,
         role: payload.role,
         company_id: payload.companyId,
+        jira_account_id: payload.jiraAccountId || null,
+        jira_display_name: payload.jiraDisplayName || null,
+        jira_mapped_at: hasJiraMapping ? new Date().toISOString() : null,
         // leave balances will be filled by DB defaults; include here for clarity
         sick_balance: 10,
         casual_balance: 7,

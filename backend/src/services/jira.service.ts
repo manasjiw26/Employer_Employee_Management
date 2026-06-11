@@ -52,6 +52,7 @@ const getConfig = () => {
   const email = process.env.JIRA_USER_EMAIL;
   const apiToken = process.env.JIRA_API_TOKEN;
   const projectKey = process.env.JIRA_PROJECT_KEY;
+  const projectRoleId = process.env.JIRA_PROJECT_ROLE_ID;
   const issueType = process.env.JIRA_ISSUE_TYPE || 'Task';
 
   if (!baseUrl || !email || !apiToken || !projectKey) {
@@ -61,7 +62,7 @@ const getConfig = () => {
     );
   }
 
-  return { baseUrl, email, apiToken, projectKey, issueType };
+  return { baseUrl, email, apiToken, projectKey, projectRoleId, issueType };
 };
 
 const jiraFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
@@ -130,6 +131,20 @@ const normalizeIssue = (issue: JiraIssue) => ({
 });
 
 export const JiraService = {
+  addUserToConfiguredProjectRole: async (accountId: string) => {
+    const { projectKey, projectRoleId } = getConfig();
+    if (!projectRoleId) {
+      return { added: false, reason: 'JIRA_PROJECT_ROLE_ID is not configured' };
+    }
+
+    await jiraFetch(`/rest/api/3/project/${encodeURIComponent(projectKey)}/role/${encodeURIComponent(projectRoleId)}`, {
+      method: 'POST',
+      body: JSON.stringify({ user: [accountId] }),
+    });
+
+    return { added: true };
+  },
+
   findUserByEmail: async (email: string) => {
     const users = await jiraFetch<JiraUser[]>(
       `/rest/api/3/user/search?query=${encodeURIComponent(email)}&maxResults=50`,

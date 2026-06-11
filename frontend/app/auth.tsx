@@ -32,6 +32,8 @@ export default function AuthScreen() {
   const [role, setRole] = useState<'EMPLOYER' | 'EMPLOYEE'>('EMPLOYEE');
   const [companyName, setCompanyName] = useState('');
   const [registrationCode, setRegistrationCode] = useState('');
+  const [jiraAccountId, setJiraAccountId] = useState('');
+  const [jiraDisplayName, setJiraDisplayName] = useState('');
 
   // Loading & error
   const [loading, setLoading] = useState(false);
@@ -132,6 +134,8 @@ export default function AuthScreen() {
         role,
         companyName: role === 'EMPLOYER' ? companyName : undefined,
         registrationCode: role === 'EMPLOYEE' ? registrationCode.trim().toUpperCase() : undefined,
+        jiraAccountId: jiraAccountId.trim() || undefined,
+        jiraDisplayName: jiraDisplayName.trim() || undefined,
       };
 
       const data = await apiFetch('/auth/register', {
@@ -323,6 +327,32 @@ export default function AuthScreen() {
                   </Text>
                 </View>
               )}
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Jira Account ID (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Atlassian accountId"
+                  placeholderTextColor={Colors.textMuted}
+                  value={jiraAccountId}
+                  onChangeText={setJiraAccountId}
+                  autoCapitalize="none"
+                />
+                <Text style={styles.hintText}>
+                  Add this if you want assigned tasks to sync with Jira.
+                </Text>
+              </View>
+
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Jira Display Name (optional)</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder="Jane Doe"
+                  placeholderTextColor={Colors.textMuted}
+                  value={jiraDisplayName}
+                  onChangeText={setJiraDisplayName}
+                />
+              </View>
 
               <TouchableOpacity style={styles.button} onPress={handleRegisterProfile} disabled={loading}>
                 {loading ? (

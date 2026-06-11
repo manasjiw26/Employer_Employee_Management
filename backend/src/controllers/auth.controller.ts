@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import supabase from '../config/supabase';
 import { CompanyModel, ProfileModel } from '../models/profile.model';
+import { JiraService } from '../services/jira.service';
 
 export const signup = async (req: Request, res: Response) => {
   try {
@@ -77,7 +78,7 @@ export const register = async (req: Request, res: Response) => {
       return res.status(401).json({ error: 'Invalid or expired token' });
     }
 
-    const { name, role, companyName, registrationCode } = req.body;
+    const { name, role, companyName, registrationCode, jiraAccountId, jiraDisplayName } = req.body;
     if (!name || !role) {
       return res.status(400).json({ error: 'name and role are required' });
     }
@@ -113,9 +114,22 @@ export const register = async (req: Request, res: Response) => {
       name,
       role,
       companyId: company.id,
+      jiraAccountId: typeof jiraAccountId === 'string' ? jiraAccountId.trim() || undefined : undefined,
+      jiraDisplayName: typeof jiraDisplayName === 'string' ? jiraDisplayName.trim() || undefined : undefined,
     });
 
-    return res.status(201).json({ profile, company });
+    let jiraProjectRoleWarning: string | undefined;
+    if (profile.jira_account_id) {
+      try {
+        const result = await JiraService.addUserToConfiguredProjectRole(profile.jira_account_id);
+        if (!result.added) jiraProjectRoleWarning = result.reason;
+      } catch (err: any) {
+        jiraProjectRoleWarning = `Jira account saved, but project role assignment failed: ${err.message}`;
+        console.warn(jiraProjectRoleWarning);
+      }
+    }
+
+    return res.status(201).json({ profile, company, jira_project_role_warning: jiraProjectRoleWarning });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });
   }

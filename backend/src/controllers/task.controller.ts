@@ -75,26 +75,21 @@ export const createTask = async (req: Request, res: Response) => {
     let jiraIssue: { id: string; key: string; browseUrl: string } | null = null;
     let syncWarning: string | undefined;
 
-    try {
-      let jiraAccountId = employee.jira_account_id as string | undefined;
-      if (!jiraAccountId) {
-        const jiraUser = await JiraService.findUserByEmail(employee.email);
-        await ProfileModel.updateJiraMapping(employee.id, req.user!.companyId, {
-          accountId: jiraUser.accountId,
-          displayName: jiraUser.displayName,
+    const jiraAccountId = employee.jira_account_id as string | undefined;
+    if (jiraAccountId) {
+      try {
+        jiraIssue = await JiraService.createIssue({
+          summary: title,
+          description,
+          assigneeAccountId: jiraAccountId,
+          dueDate: due_date,
         });
-        jiraAccountId = jiraUser.accountId;
+      } catch (err: any) {
+        syncWarning = `Saved in Supabase only. Jira assignment failed: ${err.message}`;
+        console.warn(syncWarning);
       }
-
-      jiraIssue = await JiraService.createIssue({
-        summary: title,
-        description,
-        assigneeAccountId: jiraAccountId,
-        dueDate: due_date,
-      });
-    } catch (err: any) {
-      syncWarning = `Saved in Supabase only. Jira assignment failed: ${err.message}`;
-      console.warn(syncWarning);
+    } else {
+      syncWarning = 'Saved in Supabase only because this employee has no Jira account ID.';
     }
 
     const task = await TaskModel.create({

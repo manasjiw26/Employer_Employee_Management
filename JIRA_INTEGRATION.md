@@ -24,12 +24,18 @@ JIRA_BASE_URL=https://your-domain.atlassian.net
 JIRA_USER_EMAIL=jira-service-account@your-company.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=HR
+JIRA_PROJECT_ROLE_ID=10002
 JIRA_ISSUE_TYPE=Task
 JIRA_SYNC_TTL_MS=60000
 ```
 
 The Jira service account needs access to the configured project and permissions to browse users, create
-issues, assign issues, browse issues, and transition issues.
+issues, assign issues, browse issues, transition issues, and add users to the configured project role.
+
+`JIRA_PROJECT_ROLE_ID` is optional, but enables automatic project enrollment when an app user registers
+or is manually mapped to Jira. Use a project role that is included in your Jira permission scheme for
+`Browse Projects` and `Assignable User`. The Jira service account also needs `Administer Projects` for
+that project or global `Administer Jira` permission to add users to the role.
 
 ## Database Mapping
 
