@@ -11,18 +11,26 @@ import {
 import { Colors } from '../../src/theme/colors';
 import { apiFetch } from '../../src/config/api';
 import { Calendar, Play, Check, CheckSquare } from 'lucide-react-native';
+import { useAuth } from '../_layout';
+import { mergeTask, readTaskCache, subscribeToTaskChanges, writeTaskCache } from '../../src/cache/taskCache';
 
 export default function EmployeeTasks() {
+  const { profile } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<'TODO' | 'IN_PROGRESS' | 'DONE'>('TODO');
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
-  const fetchMyTasks = async () => {
+  const cacheScope = `employee:${profile?.id || 'unknown'}`;
+
+  const fetchMyTasks = async (syncJira = false) => {
     try {
       setLoading(true);
-      const data = await apiFetch('/tasks/my');
+      const data = (
+        await apiFetch(`/tasks/sync${syncJira ? '?force=true' : ''}`, { method: 'POST' })
+      ).tasks;
       setTasks(data);
+      await writeTaskCache(cacheScope, data);
     } catch (err: any) {
       console.log('Error fetching my tasks:', err.message);
     } finally {
@@ -31,23 +39,40 @@ export default function EmployeeTasks() {
   };
 
   useEffect(() => {
-    fetchMyTasks();
-  }, []);
+    if (!profile?.id || !profile?.company_id) return;
+
+    readTaskCache(cacheScope).then(cache => {
+      if (cache) setTasks(cache.tasks);
+      if (!cache?.isFresh) fetchMyTasks();
+      else setLoading(false);
+    });
+
+    return subscribeToTaskChanges(
+      cacheScope,
+      profile.company_id,
+      task => task.assigned_to_id === profile.id,
+      setTasks,
+    );
+  }, [profile?.id, profile?.company_id]);
 
   const handleUpdateStatus = async (taskId: string, newStatus: 'IN_PROGRESS' | 'DONE') => {
     setUpdatingId(taskId);
     try {
-      await apiFetch(`/tasks/${taskId}/status`, {
+      const response = await apiFetch(`/tasks/${taskId}/status`, {
         method: 'PATCH',
         body: JSON.stringify({ status: newStatus }),
       });
 
-      // Update local task state
-      setTasks(prev => prev.map(task => 
-        task.id === taskId ? { ...task, status: newStatus } : task
-      ));
+      setTasks(prev => {
+        const changedTask = response.task || { id: taskId, status: newStatus };
+        const next = mergeTask(prev, changedTask);
+        writeTaskCache(cacheScope, next);
+        return next;
+      });
 
-      if (newStatus === 'DONE') {
+      if (response.sync_warning) {
+        Alert.alert('Task Updated', response.sync_warning);
+      } else if (newStatus === 'DONE') {
         Alert.alert('Task Completed!', 'Great work. The task has been marked as completed.');
       } else {
         Alert.alert('Task Started', 'Task status updated to In Progress.');
@@ -67,13 +92,14 @@ export default function EmployeeTasks() {
     return (
       <View style={styles.card}>
         <Text style={styles.taskTitle}>{item.title}</Text>
+        {item.jira_issue_key ? <Text style={styles.issueKey}>{item.jira_issue_key}</Text> : null}
         {item.description ? <Text style={styles.taskDesc}>{item.description}</Text> : null}
 
         <View style={styles.detailsRow}>
           <View style={styles.detailItem}>
             <Calendar color={Colors.textMuted} size={14} />
             <Text style={styles.detailText}>
-              Due: {new Date(item.due_date).toLocaleDateString()}
+              Due: {item.due_date ? new Date(item.due_date).toLocaleDateString() : 'No due date'}
             </Text>
           </View>
         </View>
@@ -153,7 +179,7 @@ export default function EmployeeTasks() {
           </View>
         }
         refreshing={loading}
-        onRefresh={fetchMyTasks}
+        onRefresh={() => fetchMyTasks(true)}
       />
     </View>
   );
@@ -213,6 +239,13 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     marginTop: 6,
     lineHeight: 18,
+  },
+  issueKey: {
+    fontFamily: 'Outfit',
+    fontSize: 11,
+    fontWeight: '700',
+    color: Colors.primary,
+    marginTop: 4,
   },
   detailsRow: {
     flexDirection: 'row',

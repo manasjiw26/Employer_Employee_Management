@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { getDirectory, getEmployee, updateRole, removeEmployee } from '../controllers/employee.controller';
+import { getDirectory, getEmployee, mapEmployeeToJira, updateRole, removeEmployee } from '../controllers/employee.controller';
 import { authenticate, requireEmployer } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -15,6 +15,8 @@ router.get('/:id', getEmployee);
 
 // PUT  /api/employees/:id/role — employer updates employee role
 router.put('/:id/role', requireEmployer, updateRole);
+
+router.post('/:id/jira/map', requireEmployer, mapEmployeeToJira);
 
 // DELETE /api/employees/:id  — employer removes an employee
 router.delete('/:id', requireEmployer, removeEmployee);

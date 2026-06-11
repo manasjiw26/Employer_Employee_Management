@@ -17,6 +17,9 @@ create table if not exists public.profiles (
   role text not null check (role in ('EMPLOYEE', 'EMPLOYER')),
   company_id uuid not null references public.companies(id) on delete cascade,
   avatar_url text,
+  jira_account_id text unique,
+  jira_display_name text,
+  jira_mapped_at timestamptz,
   points integer not null default 0 check (points >= 0),
   created_at timestamptz not null default now()
 );
@@ -59,8 +62,13 @@ create table if not exists public.tasks (
   company_id uuid not null references public.companies(id) on delete cascade,
   status text not null default 'TODO' check (status in ('TODO', 'IN_PROGRESS', 'DONE')),
   points_reward integer not null default 100 check (points_reward >= 0),
-  due_date timestamptz not null,
+  due_date timestamptz,
   completed_at timestamptz,
+  jira_issue_id text unique,
+  jira_issue_key text unique,
+  jira_issue_url text,
+  jira_updated_at timestamptz,
+  updated_at timestamptz not null default now(),
   created_at timestamptz not null default now()
 );
 

@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createTask, getMyTasks, getAllTasks, updateTaskStatus } from '../controllers/task.controller';
+import { createTask, getMyTasks, getAllTasks, getAvailableTransitions, syncTasks, updateTaskStatus } from '../controllers/task.controller';
 import { authenticate, requireEmployer } from '../middleware/auth.middleware';
 
 const router = Router();
@@ -11,9 +11,11 @@ router.post('/', requireEmployer, createTask);
 
 // GET   /api/tasks/my          — employee views their assigned tasks
 router.get('/my', getMyTasks);
+router.post('/sync', syncTasks);
 
 // GET   /api/tasks             — employer views all tasks in company
 router.get('/', requireEmployer, getAllTasks);
+router.get('/:id/transitions', getAvailableTransitions);
 
 // PATCH /api/tasks/:id/status  — employee updates task status
 router.patch('/:id/status', updateTaskStatus);

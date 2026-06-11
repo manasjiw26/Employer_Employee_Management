@@ -1,4 +1,4 @@
-import supabase from '../config/supabase';
+import supabase, { supabaseDb } from '../config/supabase';
 
 export const TaskModel = {
   create: async (payload: {
@@ -9,6 +9,9 @@ export const TaskModel = {
     companyId: string;
     pointsReward: number;
     dueDate: string;
+    jiraIssueId?: string;
+    jiraIssueKey?: string;
+    jiraIssueUrl?: string;
   }) => {
     const { data, error } = await supabase
       .from('tasks')
@@ -21,6 +24,9 @@ export const TaskModel = {
         points_reward: payload.pointsReward,
         due_date: payload.dueDate,
         status: 'TODO',
+        jira_issue_id: payload.jiraIssueId || null,
+        jira_issue_key: payload.jiraIssueKey || null,
+        jira_issue_url: payload.jiraIssueUrl || null,
       })
       .select()
       .single();
@@ -64,11 +70,79 @@ export const TaskModel = {
     return data;
   },
 
+  findByJiraIssueKey: async (issueKey: string, companyId: string) => {
+    const { data, error } = await supabase
+      .from('tasks')
+      .select()
+      .eq('jira_issue_key', issueKey)
+      .eq('company_id', companyId)
+      .single();
+
+    if (error) return null;
+    return data;
+  },
+
   updateStatus: async (id: string, status: string, completedAt?: string) => {
     const { error } = await supabase
       .from('tasks')
       .update({ status, completed_at: completedAt })
       .eq('id', id);
+
+    if (error) throw error;
+  },
+
+  upsertJiraIssues: async (
+    companyId: string,
+    issues: Array<{
+      jira_issue_id: string;
+      jira_issue_key: string;
+      title: string;
+      description: string;
+      due_date: string | null;
+      status: string;
+      jira_updated_at: string;
+      assigned_to_id: string;
+    }>,
+  ) => {
+    if (issues.length === 0) return [];
+
+    const { data, error } = await supabaseDb
+      .from('tasks')
+      .upsert(
+        issues.map(issue => ({
+          ...issue,
+          company_id: companyId,
+          completed_at: issue.status === 'DONE' ? issue.jira_updated_at : null,
+        })),
+        { onConflict: 'jira_issue_key' },
+      )
+      .select();
+
+    if (error) throw error;
+    return data;
+  },
+
+  getSyncState: async (companyId: string) => {
+    const { data, error } = await supabaseDb
+      .from('task_sync_state')
+      .select('last_jira_sync_at, last_jira_sync_error')
+      .eq('company_id', companyId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  },
+
+  setSyncState: async (companyId: string, errorMessage?: string) => {
+    const now = new Date().toISOString();
+    const { error } = await supabaseDb
+      .from('task_sync_state')
+      .upsert({
+        company_id: companyId,
+        last_jira_sync_at: errorMessage ? undefined : now,
+        last_jira_sync_error: errorMessage || null,
+        updated_at: now,
+      });
 
     if (error) throw error;
   },

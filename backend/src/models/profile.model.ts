@@ -125,7 +125,7 @@ export const ProfileModel = {
   findAllByCompany: async (companyId: string) => {
     const { data, error } = await supabaseDb
       .from('profiles')
-      .select('id, name, email, role, points, avatar_url, created_at')
+      .select('id, name, email, role, points, avatar_url, jira_account_id, jira_display_name, jira_mapped_at, created_at')
       .eq('company_id', companyId)
       .order('name');
 
@@ -153,6 +153,40 @@ export const ProfileModel = {
       .eq('company_id', companyId);
 
     if (error) throw error;
+  },
+
+  updateJiraMapping: async (
+    id: string,
+    companyId: string,
+    payload: { accountId: string; displayName: string },
+  ) => {
+    const { data, error } = await supabaseDb
+      .from('profiles')
+      .update({
+        jira_account_id: payload.accountId,
+        jira_display_name: payload.displayName,
+        jira_mapped_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('company_id', companyId)
+      .select('id, name, email, jira_account_id, jira_display_name, jira_mapped_at')
+      .single();
+
+    if (error) throw error;
+    return data;
+  },
+
+  findByJiraAccountIds: async (accountIds: string[], companyId: string) => {
+    if (accountIds.length === 0) return [];
+
+    const { data, error } = await supabaseDb
+      .from('profiles')
+      .select('id, name, email, jira_account_id')
+      .eq('company_id', companyId)
+      .in('jira_account_id', accountIds);
+
+    if (error) throw error;
+    return data;
   },
 
   delete: async (id: string, companyId: string) => {

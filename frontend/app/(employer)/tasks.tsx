@@ -16,8 +16,11 @@ import {
 import { Colors } from '../../src/theme/colors';
 import { apiFetch } from '../../src/config/api';
 import { CheckSquare, Plus, Calendar, User, X } from 'lucide-react-native';
+import { useAuth } from '../_layout';
+import { mergeTask, readTaskCache, subscribeToTaskChanges, writeTaskCache } from '../../src/cache/taskCache';
 
 export default function EmployerTasks() {
+  const { profile } = useAuth();
   const [tasks, setTasks] = useState<any[]>([]);
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,15 +34,27 @@ export default function EmployerTasks() {
   const [description, setDescription] = useState('');
   const [dueDate, setDueDate] = useState('');
   const [assignedToId, setAssignedToId] = useState('');
+  const [jiraAccountId, setJiraAccountId] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [mappingJira, setMappingJira] = useState(false);
 
-  const fetchData = async () => {
+  const cacheScope = `employer:${profile?.id || 'unknown'}`;
+
+  const fetchData = async (syncJira = false) => {
     try {
       setLoading(true);
-      const taskList = await apiFetch('/tasks');
+      const cached = await readTaskCache(cacheScope);
+      if (cached) setTasks(cached.tasks);
+
+      const taskList = syncJira
+        ? (await apiFetch('/tasks/sync?force=true', { method: 'POST' })).tasks
+        : cached?.isFresh
+          ? cached.tasks
+          : (await apiFetch('/tasks/sync', { method: 'POST' })).tasks;
       const employeeList = await apiFetch('/employees');
       
       setTasks(taskList);
+      await writeTaskCache(cacheScope, taskList);
       // Filter out employers from assignments
       setEmployees(employeeList.filter((emp: any) => emp.role === 'EMPLOYEE'));
     } catch (err: any) {
@@ -50,8 +65,16 @@ export default function EmployerTasks() {
   };
 
   useEffect(() => {
+    if (!profile?.id || !profile?.company_id) return;
     fetchData();
-  }, []);
+
+    return subscribeToTaskChanges(
+      cacheScope,
+      profile.company_id,
+      () => true,
+      setTasks,
+    );
+  }, [profile?.id, profile?.company_id]);
 
   const handleCreateTask = async () => {
     if (!title || !dueDate || !assignedToId) {
@@ -80,7 +103,11 @@ export default function EmployerTasks() {
         body: JSON.stringify(payload),
       });
 
-      setTasks([newTask, ...tasks]);
+      setTasks(prev => {
+        const next = mergeTask(prev, newTask);
+        writeTaskCache(cacheScope, next);
+        return next;
+      });
       setCreateModalVisible(false);
       
       // Reset form
@@ -89,11 +116,48 @@ export default function EmployerTasks() {
       setDueDate('');
       setAssignedToId('');
 
-      Alert.alert('Success', 'Task created and assigned!');
+      Alert.alert(
+        newTask.sync_warning ? 'Task Saved' : 'Success',
+        newTask.sync_warning || 'Task created and assigned!',
+      );
     } catch (err: any) {
       Alert.alert('Error', err.message || 'Failed to create task');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const selectedEmployee = employees.find(emp => emp.id === assignedToId);
+
+  const handleSaveJiraId = async () => {
+    if (!selectedEmployee) {
+      Alert.alert('Error', 'Select an employee first.');
+      return;
+    }
+    if (!jiraAccountId.trim()) {
+      Alert.alert('Error', 'Enter the Jira accountId.');
+      return;
+    }
+
+    setMappingJira(true);
+    try {
+      const mapped = await apiFetch(`/employees/${selectedEmployee.id}/jira/map`, {
+        method: 'POST',
+        body: JSON.stringify({
+          accountId: jiraAccountId.trim(),
+          displayName: selectedEmployee.name,
+        }),
+      });
+
+      setEmployees(prev => prev.map(emp =>
+        emp.id === selectedEmployee.id ? { ...emp, ...mapped } : emp
+      ));
+      setJiraAccountId('');
+      Alert.alert('Success', 'Jira ID saved. New tasks for this employee can now be created in Jira too.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to save Jira ID');
+    } finally {
+      setMappingJira(false);
     }
   };
 
@@ -168,7 +232,7 @@ export default function EmployerTasks() {
           </View>
         }
         refreshing={loading}
-        onRefresh={fetchData}
+        onRefresh={() => fetchData(true)}
       />
 
       {/* FAB (Floating Action Button) for creating task */}
@@ -244,7 +308,10 @@ export default function EmployerTasks() {
                         styles.assigneeOption,
                         assignedToId === emp.id && styles.assigneeOptionActive,
                       ]}
-                      onPress={() => setAssignedToId(emp.id)}
+                      onPress={() => {
+                        setAssignedToId(emp.id);
+                        setJiraAccountId(emp.jira_account_id || '');
+                      }}
                     >
                       <Text
                         style={[
@@ -252,7 +319,7 @@ export default function EmployerTasks() {
                           assignedToId === emp.id && styles.assigneeOptionTextActive,
                         ]}
                       >
-                        {emp.name}
+                        {emp.name}{emp.jira_account_id ? ' (Jira mapped)' : ''}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -260,6 +327,33 @@ export default function EmployerTasks() {
                     <Text style={styles.errorText}>No employees available in directory.</Text>
                   )}
                 </View>
+                {selectedEmployee && !selectedEmployee.jira_account_id ? (
+                  <View style={styles.jiraMapBox}>
+                    <Text style={styles.jiraMapTitle}>Add Jira ID for {selectedEmployee.name}</Text>
+                    <Text style={styles.jiraMapHelp}>
+                      Paste the Atlassian accountId to store it in Supabase and create future tasks in Jira.
+                    </Text>
+                    <TextInput
+                      style={styles.jiraInput}
+                      placeholder="Jira accountId"
+                      placeholderTextColor={Colors.textMuted}
+                      value={jiraAccountId}
+                      onChangeText={setJiraAccountId}
+                      autoCapitalize="none"
+                    />
+                    <TouchableOpacity
+                      style={styles.jiraSaveButton}
+                      onPress={handleSaveJiraId}
+                      disabled={mappingJira}
+                    >
+                      {mappingJira ? (
+                        <ActivityIndicator color={Colors.onPrimary} />
+                      ) : (
+                        <Text style={styles.jiraSaveButtonText}>Save Jira ID</Text>
+                      )}
+                    </TouchableOpacity>
+                  </View>
+                ) : null}
               </View>
 
               <TouchableOpacity
@@ -510,6 +604,52 @@ const styles = StyleSheet.create({
     color: Colors.danger,
     textAlign: 'center',
     padding: 10,
+  },
+  jiraMapBox: {
+    backgroundColor: Colors.inputBg,
+    borderRadius: 10,
+    padding: 12,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  jiraMapTitle: {
+    fontFamily: 'Outfit',
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.text,
+  },
+  jiraMapHelp: {
+    fontFamily: 'Outfit',
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 17,
+    marginTop: 4,
+  },
+  jiraInput: {
+    backgroundColor: Colors.card,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: Colors.text,
+    fontFamily: 'Outfit',
+    fontSize: 13,
+    marginTop: 10,
+  },
+  jiraSaveButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 8,
+    paddingVertical: 11,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  jiraSaveButtonText: {
+    fontFamily: 'Outfit',
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.onPrimary,
   },
   submitButton: {
     backgroundColor: Colors.primary,

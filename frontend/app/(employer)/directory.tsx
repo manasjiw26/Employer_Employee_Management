@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  TextInput,
 } from 'react-native';
 import { Colors } from '../../src/theme/colors';
 import { apiFetch } from '../../src/config/api';
@@ -23,6 +24,9 @@ export default function EmployeeDirectory() {
   // Modal control
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
   const [actionModalVisible, setActionModalVisible] = useState(false);
+  const [jiraAccountId, setJiraAccountId] = useState('');
+  const [jiraDisplayName, setJiraDisplayName] = useState('');
+  const [mappingJira, setMappingJira] = useState(false);
 
   const fetchEmployees = async () => {
     try {
@@ -47,6 +51,8 @@ export default function EmployeeDirectory() {
       return;
     }
     setSelectedUser(user);
+    setJiraAccountId(user.jira_account_id || '');
+    setJiraDisplayName(user.jira_display_name || user.name || '');
     setActionModalVisible(true);
   };
 
@@ -101,6 +107,62 @@ export default function EmployeeDirectory() {
     );
   };
 
+  const handleAutoMapJira = async () => {
+    if (!selectedUser) return;
+
+    setMappingJira(true);
+    try {
+      const mapped = await apiFetch(`/employees/${selectedUser.id}/jira/map`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      });
+
+      setEmployees(employees.map(emp =>
+        emp.id === selectedUser.id ? { ...emp, ...mapped } : emp
+      ));
+      setSelectedUser({ ...selectedUser, ...mapped });
+      setJiraAccountId(mapped.jira_account_id || '');
+      setJiraDisplayName(mapped.jira_display_name || '');
+      Alert.alert('Success', 'Jira account mapped from email.');
+    } catch (err: any) {
+      Alert.alert(
+        'Jira Email Mapping Failed',
+        `${err.message || 'Could not find Jira user by email'}\n\nPaste the Jira accountId manually below.`,
+      );
+    } finally {
+      setMappingJira(false);
+    }
+  };
+
+  const handleManualMapJira = async () => {
+    if (!selectedUser) return;
+    if (!jiraAccountId.trim()) {
+      Alert.alert('Error', 'Please enter the Jira accountId.');
+      return;
+    }
+
+    setMappingJira(true);
+    try {
+      const mapped = await apiFetch(`/employees/${selectedUser.id}/jira/map`, {
+        method: 'POST',
+        body: JSON.stringify({
+          accountId: jiraAccountId.trim(),
+          displayName: jiraDisplayName.trim() || selectedUser.name,
+        }),
+      });
+
+      setEmployees(employees.map(emp =>
+        emp.id === selectedUser.id ? { ...emp, ...mapped } : emp
+      ));
+      setSelectedUser({ ...selectedUser, ...mapped });
+      Alert.alert('Success', 'Jira accountId saved to Supabase.');
+    } catch (err: any) {
+      Alert.alert('Error', err.message || 'Failed to save Jira accountId');
+    } finally {
+      setMappingJira(false);
+    }
+  };
+
   const renderEmployeeItem = ({ item }: { item: any }) => {
     const isSelf = item.id === currentUserProfile?.id;
 
@@ -138,6 +200,15 @@ export default function EmployeeDirectory() {
                   {item.role}
                 </Text>
               </View>
+              {item.jira_account_id ? (
+                <View style={styles.jiraBadge}>
+                  <Text style={styles.jiraText}>Jira mapped</Text>
+                </View>
+              ) : (
+                <View style={styles.jiraMissingBadge}>
+                  <Text style={styles.jiraMissingText}>No Jira ID</Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -221,6 +292,54 @@ export default function EmployeeDirectory() {
                   ]}>Employer</Text>
                 </TouchableOpacity>
               </View>
+
+              <View style={styles.divider} />
+
+              <Text style={styles.sectionTitle}>Jira Mapping</Text>
+              <Text style={styles.helperText}>
+                Auto-map uses the staff email. If Jira hides email addresses, paste the Atlassian accountId manually.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.secondaryButton}
+                onPress={handleAutoMapJira}
+                disabled={mappingJira}
+              >
+                {mappingJira ? (
+                  <ActivityIndicator color={Colors.primary} />
+                ) : (
+                  <Text style={styles.secondaryButtonText}>Auto-map by Email</Text>
+                )}
+              </TouchableOpacity>
+
+              <TextInput
+                style={styles.input}
+                placeholder="Jira accountId"
+                placeholderTextColor={Colors.textMuted}
+                value={jiraAccountId}
+                onChangeText={setJiraAccountId}
+                autoCapitalize="none"
+              />
+
+              <TextInput
+                style={styles.input}
+                placeholder="Jira display name (optional)"
+                placeholderTextColor={Colors.textMuted}
+                value={jiraDisplayName}
+                onChangeText={setJiraDisplayName}
+              />
+
+              <TouchableOpacity
+                style={styles.saveJiraButton}
+                onPress={handleManualMapJira}
+                disabled={mappingJira}
+              >
+                {mappingJira ? (
+                  <ActivityIndicator color={Colors.onPrimary} />
+                ) : (
+                  <Text style={styles.saveJiraButtonText}>Save Jira ID</Text>
+                )}
+              </TouchableOpacity>
 
               <View style={styles.divider} />
 
@@ -329,6 +448,30 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
+  jiraBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.tagGreen,
+  },
+  jiraText: {
+    fontFamily: 'Outfit',
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.success,
+  },
+  jiraMissingBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: Colors.tagRed,
+  },
+  jiraMissingText: {
+    fontFamily: 'Outfit',
+    fontSize: 12,
+    fontWeight: '700',
+    color: Colors.danger,
+  },
   emptyCard: {
     backgroundColor: Colors.card,
     borderRadius: 16,
@@ -394,6 +537,52 @@ const styles = StyleSheet.create({
   roleOptions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+  },
+  helperText: {
+    fontFamily: 'Outfit',
+    fontSize: 12,
+    color: Colors.textMuted,
+    lineHeight: 17,
+    marginBottom: 12,
+  },
+  input: {
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+    color: Colors.text,
+    fontFamily: 'Outfit',
+    fontSize: 13,
+    marginTop: 10,
+  },
+  secondaryButton: {
+    borderRadius: 10,
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    alignItems: 'center',
+    backgroundColor: Colors.tagBlue,
+  },
+  secondaryButtonText: {
+    fontFamily: 'Outfit',
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.primary,
+  },
+  saveJiraButton: {
+    backgroundColor: Colors.primary,
+    borderRadius: 10,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  saveJiraButtonText: {
+    fontFamily: 'Outfit',
+    fontSize: 13,
+    fontWeight: '700',
+    color: Colors.onPrimary,
   },
   optionButton: {
     flex: 1,
