@@ -1,4 +1,4 @@
-import supabase from '../config/supabase';
+import supabase, { supabaseDb } from '../config/supabase';
 
 export const BadgeModel = {
   create: async (payload: {
@@ -110,7 +110,7 @@ export const NotificationModel = {
     title: string;
     message: string;
   }) => {
-    const { error } = await supabase.from('notifications').insert({
+    const { error } = await supabaseDb.from('notifications').insert({
       profile_id: payload.profileId,
       company_id: payload.companyId,
       title: payload.title,
