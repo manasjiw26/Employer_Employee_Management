@@ -41,6 +41,17 @@ type JiraIssue = {
   };
 };
 
+type JiraBoard = {
+  id: number;
+  name: string;
+};
+
+type JiraSprint = {
+  id: number;
+  name: string;
+  state: string;
+};
+
 export class JiraApiError extends Error {
   constructor(message: string, public readonly status: number) {
     super(message);
@@ -54,6 +65,7 @@ const getConfig = () => {
   const projectKey = process.env.JIRA_PROJECT_KEY;
   const projectRoleId = process.env.JIRA_PROJECT_ROLE_ID;
   const issueType = process.env.JIRA_ISSUE_TYPE || 'Task';
+  const boardId = process.env.JIRA_BOARD_ID;
 
   if (!baseUrl || !email || !apiToken || !projectKey) {
     throw new JiraApiError(
@@ -62,7 +74,7 @@ const getConfig = () => {
     );
   }
 
-  return { baseUrl, email, apiToken, projectKey, projectRoleId, issueType };
+  return { baseUrl, email, apiToken, projectKey, projectRoleId, issueType, boardId };
 };
 
 const jiraFetch = async <T>(path: string, options: RequestInit = {}): Promise<T> => {
@@ -185,6 +197,41 @@ export const JiraService = {
     });
 
     return { ...issue, browseUrl: `${baseUrl}/browse/${issue.key}` };
+  },
+
+  addIssueToActiveSprint: async (issueKey: string) => {
+    const { projectKey, boardId: configuredBoardId } = getConfig();
+    let boardId = configuredBoardId ? Number(configuredBoardId) : undefined;
+
+    if (configuredBoardId && Number.isNaN(boardId)) {
+      throw new JiraApiError('JIRA_BOARD_ID must be a numeric Jira board ID.', 500);
+    }
+
+    if (!boardId) {
+      const boards = await jiraFetch<{ values: JiraBoard[] }>(
+        `/rest/agile/1.0/board?projectKeyOrId=${encodeURIComponent(projectKey)}&type=scrum&maxResults=50`,
+      );
+      boardId = boards.values[0]?.id;
+    }
+
+    if (!boardId) {
+      throw new JiraApiError(`No Scrum board found for Jira project ${projectKey}. Set JIRA_BOARD_ID to use current sprint assignment.`, 404);
+    }
+
+    const sprints = await jiraFetch<{ values: JiraSprint[] }>(
+      `/rest/agile/1.0/board/${encodeURIComponent(String(boardId))}/sprint?state=active&maxResults=50`,
+    );
+    const activeSprint = sprints.values[0];
+    if (!activeSprint) {
+      throw new JiraApiError(`No active sprint found for Jira board ${boardId}. Start a sprint or set JIRA_BOARD_ID to the active board.`, 404);
+    }
+
+    await jiraFetch<void>(`/rest/agile/1.0/sprint/${encodeURIComponent(String(activeSprint.id))}/issue`, {
+      method: 'POST',
+      body: JSON.stringify({ issues: [issueKey] }),
+    });
+
+    return activeSprint;
   },
 
   findActiveIssuesForUser: async (accountId: string) => {

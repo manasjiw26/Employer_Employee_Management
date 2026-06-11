@@ -36,7 +36,15 @@ export const updateRole = async (req: Request, res: Response) => {
 
 export const removeEmployee = async (req: Request, res: Response) => {
   try {
-    await ProfileModel.delete(req.params.id, req.user!.companyId);
+    if (req.params.id === req.user!.id) {
+      return res.status(400).json({ error: 'You cannot remove your own account from the directory.' });
+    }
+
+    const employee = await ProfileModel.findByIdInCompany(req.params.id, req.user!.companyId);
+    if (!employee) return res.status(404).json({ error: 'Employee not found' });
+
+    await ProfileModel.deleteAuthUser(employee.id);
+    await ProfileModel.delete(employee.id, req.user!.companyId);
     return res.json({ message: 'Employee removed successfully' });
   } catch (err: any) {
     return res.status(500).json({ error: err.message });

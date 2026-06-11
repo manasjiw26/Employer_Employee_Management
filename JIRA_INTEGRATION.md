@@ -24,6 +24,7 @@ JIRA_BASE_URL=https://your-domain.atlassian.net
 JIRA_USER_EMAIL=jira-service-account@your-company.com
 JIRA_API_TOKEN=your-api-token
 JIRA_PROJECT_KEY=HR
+JIRA_BOARD_ID=1
 JIRA_PROJECT_ROLE_ID=10002
 JIRA_ISSUE_TYPE=Task
 JIRA_SYNC_TTL_MS=60000
@@ -36,6 +37,10 @@ issues, assign issues, browse issues, transition issues, and add users to the co
 or is manually mapped to Jira. Use a project role that is included in your Jira permission scheme for
 `Browse Projects` and `Assignable User`. The Jira service account also needs `Administer Projects` for
 that project or global `Administer Jira` permission to add users to the role.
+
+`JIRA_BOARD_ID` is optional when the project has one Scrum board, but recommended. After creating a Jira
+issue, the backend adds it to this board's active sprint. Without an active sprint, Jira keeps the issue
+in the backlog and the API response includes a warning while still saving the task in Supabase.
 
 ## Database Mapping
 
@@ -123,6 +128,13 @@ Express resolves the profile's Jira `accountId` and creates the Jira issue:
 ```
 
 Jira Cloud v3 rich-text fields use Atlassian Document Format (ADF), not plain strings.
+
+After Jira creation, Express calls the Jira Agile API to add the issue key to the active sprint for
+`JIRA_BOARD_ID`:
+
+```http
+POST /rest/agile/1.0/sprint/{activeSprintId}/issue
+```
 
 ## Employee: Fetch Active Tasks
 

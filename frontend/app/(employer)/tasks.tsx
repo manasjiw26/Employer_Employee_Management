@@ -48,9 +48,7 @@ export default function EmployerTasks() {
 
       const taskList = syncJira
         ? (await apiFetch('/tasks/sync?force=true', { method: 'POST' })).tasks
-        : cached?.isFresh
-          ? cached.tasks
-          : (await apiFetch('/tasks/sync', { method: 'POST' })).tasks;
+        : (await apiFetch('/tasks/sync', { method: 'POST' })).tasks;
       const employeeList = await apiFetch('/employees');
       
       setTasks(taskList);

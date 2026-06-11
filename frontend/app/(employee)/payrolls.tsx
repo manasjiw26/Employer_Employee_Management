@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, ActivityIndicator, TextInput, TouchableOpacity, Alert, Platform } from 'react-native';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
 import { Colors } from '../../src/theme/colors';
 import { apiFetch, API_BASE_URL } from '../../src/config/api';
 import { supabase } from '../../src/config/supabase';
@@ -43,8 +45,37 @@ export default function PayrollsPage() {
 
       if (!resp.ok) throw new Error(`Export failed: ${resp.statusText}`);
       const text = await resp.text();
-      // For now, just show a confirmation with size — downloading in-app requires native FS
-      Alert.alert('CSV Exported', `Received ${text.length} bytes. Paste content elsewhere to save.`);
+      const payroll = payrolls.find(item => item.id === id);
+      const fileName = `payslip_${payroll?.month || 'payroll'}_${payroll?.year || new Date().getFullYear()}.csv`;
+
+      if (Platform.OS === 'web') {
+        const blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        Alert.alert('CSV Exported', `${fileName} has been downloaded.`);
+        return;
+      }
+
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, text, {
+        encoding: FileSystem.EncodingType.UTF8,
+      });
+
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(fileUri, {
+          mimeType: 'text/csv',
+          dialogTitle: 'Export payslip CSV',
+          UTI: 'public.comma-separated-values-text',
+        });
+      } else {
+        Alert.alert('CSV Exported', `Saved to app cache: ${fileName}`);
+      }
     } catch (err: any) {
       console.warn('Export error', err);
       Alert.alert('Export failed', err.message || 'Failed to export CSV');

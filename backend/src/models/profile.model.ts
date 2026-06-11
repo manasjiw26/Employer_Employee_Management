@@ -1,4 +1,4 @@
-import { supabaseDb } from '../config/supabase';
+import supabase, { supabaseDb } from '../config/supabase';
 
 export const CompanyModel = {
   create: async (name: string) => {
@@ -202,6 +202,11 @@ export const ProfileModel = {
       .eq('id', id)
       .eq('company_id', companyId);
 
+    if (error) throw error;
+  },
+
+  deleteAuthUser: async (id: string) => {
+    const { error } = await supabase.auth.admin.deleteUser(id);
     if (error) throw error;
   },
 

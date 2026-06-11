@@ -84,6 +84,12 @@ export const createTask = async (req: Request, res: Response) => {
           assigneeAccountId: jiraAccountId,
           dueDate: due_date,
         });
+        try {
+          await JiraService.addIssueToActiveSprint(jiraIssue.key);
+        } catch (err: any) {
+          syncWarning = `Saved in Supabase and Jira, but could not move ${jiraIssue.key} to the active sprint: ${err.message}`;
+          console.warn(syncWarning);
+        }
       } catch (err: any) {
         syncWarning = `Saved in Supabase only. Jira assignment failed: ${err.message}`;
         console.warn(syncWarning);

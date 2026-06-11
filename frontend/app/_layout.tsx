@@ -43,6 +43,12 @@ export default function RootLayout() {
         setProfile(null);
         return;
       }
+      if (err.message === 'Invalid or expired token') {
+        await supabase.auth.signOut();
+        setUser(null);
+        setProfile(null);
+        return;
+      }
       console.log('Error fetching profile:', err.message);
       setProfile(null);
     }

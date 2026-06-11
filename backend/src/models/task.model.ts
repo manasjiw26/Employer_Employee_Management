@@ -13,7 +13,7 @@ export const TaskModel = {
     jiraIssueKey?: string;
     jiraIssueUrl?: string;
   }) => {
-    const { data, error } = await supabase
+    const { data, error } = await supabaseDb
       .from('tasks')
       .insert({
         title: payload.title,
@@ -110,7 +110,14 @@ export const TaskModel = {
       .from('tasks')
       .upsert(
         issues.map(issue => ({
-          ...issue,
+          jira_issue_id: issue.jira_issue_id,
+          jira_issue_key: issue.jira_issue_key,
+          title: issue.title,
+          description: issue.description,
+          due_date: issue.due_date,
+          status: issue.status,
+          jira_updated_at: issue.jira_updated_at,
+          assigned_to_id: issue.assigned_to_id,
           company_id: companyId,
           completed_at: issue.status === 'DONE' ? issue.jira_updated_at : null,
         })),

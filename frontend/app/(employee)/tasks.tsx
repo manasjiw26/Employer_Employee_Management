@@ -43,8 +43,7 @@ export default function EmployeeTasks() {
 
     readTaskCache(cacheScope).then(cache => {
       if (cache) setTasks(cache.tasks);
-      if (!cache?.isFresh) fetchMyTasks();
-      else setLoading(false);
+      fetchMyTasks();
     });
 
     return subscribeToTaskChanges(
