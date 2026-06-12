@@ -13,13 +13,14 @@ import {
 } from 'react-native';
 import { Colors } from '../../src/theme/colors';
 import { apiFetch } from '../../src/config/api';
-import { User, Shield, Trash2, X } from 'lucide-react-native';
+import { User, Shield, Trash2, X, Search } from 'lucide-react-native';
 import { useAuth } from '../_layout';
 
 export default function EmployeeDirectory() {
   const { profile: currentUserProfile } = useAuth();
   const [employees, setEmployees] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Modal control
   const [selectedUser, setSelectedUser] = useState<any | null>(null);
@@ -224,16 +225,48 @@ export default function EmployeeDirectory() {
     );
   }
 
+  const filteredEmployees = employees.filter((emp) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase().trim();
+    return (
+      (emp.name && emp.name.toLowerCase().includes(query)) ||
+      (emp.email && emp.email.toLowerCase().includes(query)) ||
+      (emp.role && emp.role.toLowerCase().includes(query))
+    );
+  });
+
   return (
     <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Search color={Colors.textSecondary} size={18} style={styles.searchIcon} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search by name, email, or role..."
+            placeholderTextColor={Colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            autoCapitalize="none"
+            autoCorrect={false}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearIconContainer}>
+              <X color={Colors.textSecondary} size={16} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
       <FlatList
-        data={employees}
+        data={filteredEmployees}
         renderItem={renderEmployeeItem}
         keyExtractor={(item) => item.id}
         contentContainerStyle={styles.listContainer}
         ListEmptyComponent={
           <View style={styles.emptyCard}>
-            <Text style={styles.emptyText}>No employees found.</Text>
+            <Text style={styles.emptyText}>
+              {searchQuery.trim() ? 'No matching employees found.' : 'No employees found.'}
+            </Text>
           </View>
         }
         refreshing={loading}
@@ -367,7 +400,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   listContainer: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 8,
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 8,
+    backgroundColor: Colors.background,
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    paddingHorizontal: 12,
+    height: 48,
+    shadowColor: Colors.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  searchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontFamily: 'Outfit',
+    fontSize: 14,
+    height: '100%',
+    padding: 0,
+  },
+  clearIconContainer: {
+    padding: 4,
   },
   card: {
     backgroundColor: Colors.card,

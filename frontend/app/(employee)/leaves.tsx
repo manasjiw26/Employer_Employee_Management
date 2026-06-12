@@ -13,6 +13,7 @@ import {
 import { Colors } from '../../src/theme/colors';
 import { apiFetch } from '../../src/config/api';
 import { Calendar, FileText, Send, Info } from 'lucide-react-native';
+import DatePicker from '../../src/components/DatePicker';
 
 export default function EmployeeLeaves() {
   const [leaves, setLeaves] = useState<any[]>([]);
@@ -24,6 +25,8 @@ export default function EmployeeLeaves() {
   const [endDate, setEndDate] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [startDatePickerVisible, setStartDatePickerVisible] = useState(false);
+  const [endDatePickerVisible, setEndDatePickerVisible] = useState(false);
 
   const fetchMyLeaves = async () => {
     try {
@@ -151,23 +154,53 @@ export default function EmployeeLeaves() {
         {/* Dates Row */}
         <View style={styles.row}>
           <View style={[styles.inputGroup, { flex: 1, marginRight: 8 }]}>
-            <Text style={styles.label}>Start Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 2026-06-15"
-              placeholderTextColor={Colors.textMuted}
+            <Text style={styles.label}>Start Date</Text>
+            <TouchableOpacity
+              style={styles.datePickerTrigger}
+              onPress={() => setStartDatePickerVisible(true)}
+            >
+              <Text style={[
+                styles.datePickerTriggerText,
+                !startDate && { color: Colors.textMuted }
+              ]}>
+                {startDate ? startDate : 'Select start date...'}
+              </Text>
+              <Calendar color={Colors.textSecondary} size={16} />
+            </TouchableOpacity>
+            <DatePicker
+              visible={startDatePickerVisible}
               value={startDate}
-              onChangeText={setStartDate}
+              onClose={() => setStartDatePickerVisible(false)}
+              onSelectDate={(date) => {
+                setStartDate(date);
+                setStartDatePickerVisible(false);
+              }}
+              title="Select Start Date"
             />
           </View>
           <View style={[styles.inputGroup, { flex: 1, marginLeft: 8 }]}>
-            <Text style={styles.label}>End Date (YYYY-MM-DD)</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. 2026-06-18"
-              placeholderTextColor={Colors.textMuted}
+            <Text style={styles.label}>End Date</Text>
+            <TouchableOpacity
+              style={styles.datePickerTrigger}
+              onPress={() => setEndDatePickerVisible(true)}
+            >
+              <Text style={[
+                styles.datePickerTriggerText,
+                !endDate && { color: Colors.textMuted }
+              ]}>
+                {endDate ? endDate : 'Select end date...'}
+              </Text>
+              <Calendar color={Colors.textSecondary} size={16} />
+            </TouchableOpacity>
+            <DatePicker
+              visible={endDatePickerVisible}
               value={endDate}
-              onChangeText={setEndDate}
+              onClose={() => setEndDatePickerVisible(false)}
+              onSelectDate={(date) => {
+                setEndDate(date);
+                setEndDatePickerVisible(false);
+              }}
+              title="Select End Date"
             />
           </View>
         </View>
@@ -292,6 +325,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    color: Colors.text,
+    fontFamily: 'Outfit',
+    fontSize: 14,
+  },
+  datePickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  datePickerTriggerText: {
     color: Colors.text,
     fontFamily: 'Outfit',
     fontSize: 14,

@@ -18,6 +18,7 @@ import { apiFetch } from '../../src/config/api';
 import { CheckSquare, Plus, Calendar, User, X } from 'lucide-react-native';
 import { useAuth } from '../_layout';
 import { mergeTask, readTaskCache, subscribeToTaskChanges, writeTaskCache } from '../../src/cache/taskCache';
+import DatePicker from '../../src/components/DatePicker';
 
 export default function EmployerTasks() {
   const { profile } = useAuth();
@@ -37,6 +38,7 @@ export default function EmployerTasks() {
   const [jiraAccountId, setJiraAccountId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [mappingJira, setMappingJira] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
 
   const cacheScope = `employer:${profile?.id || 'unknown'}`;
 
@@ -286,13 +288,28 @@ export default function EmployerTasks() {
               </View>
 
               <View style={styles.inputGroup}>
-                <Text style={styles.label}>Due Date (YYYY-MM-DD)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 2026-12-31"
-                  placeholderTextColor={Colors.textMuted}
+                <Text style={styles.label}>Due Date</Text>
+                <TouchableOpacity
+                  style={styles.datePickerTrigger}
+                  onPress={() => setDatePickerVisible(true)}
+                >
+                  <Text style={[
+                    styles.datePickerTriggerText,
+                    !dueDate && { color: Colors.textMuted }
+                  ]}>
+                    {dueDate ? dueDate : 'Select due date...'}
+                  </Text>
+                  <Calendar color={Colors.textSecondary} size={18} />
+                </TouchableOpacity>
+                <DatePicker
+                  visible={datePickerVisible}
                   value={dueDate}
-                  onChangeText={setDueDate}
+                  onClose={() => setDatePickerVisible(false)}
+                  onSelectDate={(date) => {
+                    setDueDate(date);
+                    setDatePickerVisible(false);
+                  }}
+                  title="Select Due Date"
                 />
               </View>
 
@@ -563,6 +580,22 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
+    color: Colors.text,
+    fontFamily: 'Outfit',
+    fontSize: 14,
+  },
+  datePickerTrigger: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: Colors.inputBg,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  datePickerTriggerText: {
     color: Colors.text,
     fontFamily: 'Outfit',
     fontSize: 14,
