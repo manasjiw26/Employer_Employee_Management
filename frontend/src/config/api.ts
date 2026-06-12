@@ -1,26 +1,24 @@
-import { Platform } from 'react-native';
 import Constants from 'expo-constants';
 import { supabase } from './supabase';
 
-const expoExtra = Constants.expoConfig?.extra as Record<string, string> | undefined;
-const LOCAL_IP =
-  expoExtra?.EXPO_PUBLIC_API_HOST ||
-  process.env.EXPO_PUBLIC_API_HOST ||
-  'localhost';
+// IMPORTANT: The .env file only exists on the developer's machine.
+// Vercel builds the app without it, so process.env vars will be empty
+// unless explicitly added in Vercel Dashboard → Settings → Environment Variables.
+// The PRODUCTION_API_URL below is the guaranteed fallback so the app NEVER
+// falls back to localhost (which causes "load fail" on all phones/other devices).
+const PRODUCTION_API_URL = 'https://employeremployeemanagement-production.up.railway.app/api';
 
-export const API_BASE_URL =
-  expoExtra?.EXPO_PUBLIC_API_URL ||
-  process.env.EXPO_PUBLIC_API_URL ||
-  Platform.select({
-    android: `http://10.0.2.2:5000/api`, // Map localhost for Android Emulator
-    ios: `http://${LOCAL_IP}:5000/api`,
-    default: `http://localhost:5000/api`,
-  });
+const expoExtra = Constants.expoConfig?.extra as Record<string, string> | undefined;
+
+export const API_BASE_URL: string =
+  (expoExtra?.EXPO_PUBLIC_API_URL || '').trim() ||
+  (process.env.EXPO_PUBLIC_API_URL || '').trim() ||
+  PRODUCTION_API_URL;
 
 export const apiFetch = async (endpoint: string, options: RequestInit = {}) => {
   // Only try to get token if not a signup/signin request
   let token: string | undefined;
-  
+
   if (!endpoint.includes('/auth/signup') && !endpoint.includes('/auth/signin')) {
     try {
       const { data: { session } } = await supabase.auth.getSession();
